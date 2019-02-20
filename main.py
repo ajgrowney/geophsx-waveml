@@ -70,14 +70,13 @@ def mktemplates(network_code='GEONET',
 def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
     # First we want to load our templates
-    template_names = glob.glob('tutorial_template_*.ms')
-
+    # template_names = glob.glob('tutorial_template_*.ms')
+    template_names = glob.glob('./02/*.NSN___036')
     if len(template_names) == 0:
         raise IOError('Template files not found, have you run the template ' +
                       'creation tutorial?')
 
     templates = [read(template_name) for template_name in template_names]
-
     # Work out what stations we have and get the data for them
     stations = []
     for template in templates:
@@ -93,8 +92,8 @@ def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()
     # template process_len.
 
     # You should test different parameters!!!
-    start_time = UTCDateTime(2016, 1, 4)
-    end_time = UTCDateTime(2016, 1, 5)
+    start_time = UTCDateTime(2018, 2, 24, 12, 58)
+    end_time = UTCDateTime(2018, 2, 24, 12, 59)
     chunks = []
     chunk_start = start_time
     while chunk_start < end_time:
@@ -116,12 +115,16 @@ def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()
         # Generate the bulk information to query the GeoNet database
         bulk_info = []
         for station in stations:
+            print(station[0],station[1][0],station[1][-1],t1,t2)
             bulk_info.append(('NZ', station[0], '*',
                               station[1][0] + 'H' + station[1][-1], t1, t2))
 
+        # TODO: Find effective method to get our waveforms in bulk
         # Note this will take a little while.
         print('Downloading seismic data, this may take a while')
         st = client.get_waveforms_bulk(bulk_info)
+
+        # TODO: Do we need to merge the stream
         # Merge the stream, it will be downloaded in chunks
         st.merge(fill_value='interpolate')
 
