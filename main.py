@@ -1,6 +1,7 @@
 import sys
 import warnings
 import glob
+from pprint import pprint
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
 from obspy import read_events
@@ -80,19 +81,23 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # Note that this is, and MUST BE the same as the parameters used for
     # the template creation.
     print('Processing the seismic data')
-    # st = pre_processing.shortproc(
-    #     st, lowcut=2.0, highcut=9.0, filt_order=4, samp_rate=20.0,
-    #     debug=0, num_cores=num_cores, starttime=t1, endtime=t2)
-    # # Convert from list to stream
-    # st = Stream(st)
+
+    # for st in streams:
+    #     print(vars(st))
+    #     return
+    #     st = pre_processing.shortproc(
+    #         st, lowcut=2.0, highcut=9.0, filt_order=4, samp_rate=20.0,
+    #         debug=0, num_cores=num_cores, starttime=t1, endtime=t2)
+    #     # Convert from list to stream
+    #     st = Stream(st)
 
     for st in streams:
         # Now we can conduct the matched-filter detection
+        print(type(st))
         detections = match_filter.match_filter(
             template_names=template_names, template_list=templates, trig_int=1.0,
-            st=st, threshold=8.0, threshold_type='MAD', tribulk_infog_int=6.0,
-            plotvar=plot, plotdir='.', cores=num_cores, debug=0,
-            plot_format='png')
+            st=st, threshold=5.0, threshold_type='MAD', tribulk_infog_int=6.0,
+            plotvar=False, cores=num_cores, debug=0)
 
         # Now lets try and work out how many unique events we have just to
         # compare with the GeoNet catalog of 20 events on this day in this
