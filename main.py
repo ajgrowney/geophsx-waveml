@@ -11,72 +11,31 @@ from eqcorrscan.utils.catalog_utils import filter_picks
 from eqcorrscan.core import template_gen, match_filter, lag_calc
 from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 
+def get_single_stream(path):
 
-def mktemplates(network_code='GEONET',
-                publicIDs=['2016p008122', '2016p008353', '2016p008155',
-                           '2016p008194'], plot=True):
-    """Functional wrapper to make templates"""
-    # We want to download some QuakeML files from the New Zealand GeoNet
-    # network, GeoNet currently doesn't support FDSN event queries, so we
-    # have to work around to download quakeml from their quakeml.geonet site.
+    st = read(path)
+    # temp1 = read("./02/2018-02-14-1329-50M.NSN___036") # obspy Stream
+    # print((temp1))
+    # print((st))
+    return st
 
-    client = Client(network_code)
-    # We want to download a few events from an earthquake sequence, these are
-    # identified by publiID numbers, given as arguments
-
-    catalog = Catalog()
-    for publicID in publicIDs:
-        if network_code == 'GEONET':
-            data_stream = client._download(
-                'http://quakeml.geonet.org.nz/quakeml/1.2/' + publicID)
-            data_stream.seek(0, 0)
-            catalog += read_events(data_stream, format="quakeml")
-            data_stream.close()
-        else:
-            catalog += client.get_events(
-                eventid=publicID, includearrivals=True)
-
-    # Lets plot the catalog to see what we have
-    if plot:
-        catalog.plot(projection='local', resolution='h')
-
-    # We don't need all the picks, lets take the information from the
-    # five most used stations - note that this is done to reduce computational
-    # costs.
-    catalog = filter_picks(catalog, top_n_picks=5)
-    # We only want the P picks in this example, but you can use others or all
-    #  picks if you want.
-    for event in catalog:
-        for pick in event.picks:
-            if pick.phase_hint == 'S':
-                event.picks.remove(pick)
-
-    # Now we can generate the templates
-    templates = template_gen.template_gen(
-        method='from_client', catalog=catalog, client_id=network_code,
-        lowcut=2.0, highcut=9.0, samp_rate=20.0, filt_order=4, length=3.0,
-        prepick=0.15, swin='all', process_len=3600, debug=0, plot=plot)
-
-    # We now have a series of templates! Using Obspy's Stream.write() method we
-    # can save these to disk for later use.  We will do that now for use in the
-    # following tutorials.
-    for i, template in enumerate(templates):
-        template.write('tutorial_template_' + str(i) + '.ms', format='MSEED')
-        # Note that this will warn you about data types.  As we don't care
-        # at the moment, whatever obspy chooses is fine.
+def get_waveforms_bulk(folder):
+    all_streams_in_folder = glob.glob('./'+folder+"/*")
+    bulk_return = []
+    bulk_return.append(get_single_stream(all_streams_in_folder[0]))
+    print(bulk_return)
     return
 
-
-def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()):
+def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
     # First we want to load our templates
     # template_names = glob.glob('tutorial_template_*.ms')
     template_names = glob.glob('./02/*.NSN___036')
     if len(template_names) == 0:
-        raise IOError('Template files not found, have you run the template ' +
-                      'creation tutorial?')
+        raise IOError('Template files not found, have you run the template ')
 
     templates = [read(template_name) for template_name in template_names]
+
     # Work out what stations we have and get the data for them
     stations = []
     for template in templates:
@@ -92,8 +51,8 @@ def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()
     # template process_len.
 
     # You should test different parameters!!!
-    start_time = UTCDateTime(2018, 2, 24, 12, 58)
-    end_time = UTCDateTime(2018, 2, 24, 12, 59)
+    start_time = UTCDateTime(2018, 1, 1, 00)
+    end_time = UTCDateTime(2018, 1, 1, 14)
     chunks = []
     chunk_start = start_time
     while chunk_start < end_time:
@@ -105,24 +64,32 @@ def run_matchFilter_tutorial(plot=False, process_len=3600, num_cores=cpu_count()
 
     unique_detections = []
 
-    # Set up a client to access the GeoNet database
-    client = Client("GEONET")
-
     # Note that these chunks do not rely on each other, and could be paralleled
     # on multiple nodes of a distributed cluster, see the SLURM tutorial for
     # an example of this.
     for t1, t2 in chunks:
         # Generate the bulk information to query the GeoNet database
+        t1Folder = str(t1.year) + "_" + (str(t1.month).zfill(2)) # '2018_01'
+        t2Folder = str(t2.year) + "_" + (str(t2.month).zfill(2)) # '2018_01'
+
         bulk_info = []
         for station in stations:
-            print(station[0],station[1][0],station[1][-1],t1,t2)
-            bulk_info.append(('NZ', station[0], '*',
-                              station[1][0] + 'H' + station[1][-1], t1, t2))
+            print("Station",type(station))
+            print("Time",type(t1),t2)
+            print("Month t1", t1.minute, t2.minute)
+            print(t1Folder)
+            print(station)
+            print(station[0])
+            print(station[1][-1])
+            bulk_info.append(())
+            return
 
         # TODO: Find effective method to get our waveforms in bulk
         # Note this will take a little while.
         print('Downloading seismic data, this may take a while')
         st = client.get_waveforms_bulk(bulk_info)
+        print(type(st))
+        return
 
         # TODO: Do we need to merge the stream
         # Merge the stream, it will be downloaded in chunks
@@ -271,9 +238,8 @@ if __name__ == '__main__':
     if sys.argv[1] == "pickAndLag" :
         run_pickAndLag_tutorial(min_magnitude=4, num_cores=cpu_count())
     elif sys.argv[1] == "matchFilter":
-        run_matchFilter_tutorial()
-    elif sys.argv[1] == "makeTemplates":
-        net_code = sys.argv[2]
-        idlist = list(sys.argv)[3:]
-        print(idlist)
-        mktemplates()
+        run_matchFilter()
+    elif sys.argv[1] == "getwaveformsbulk":
+        get_single_stream("2018_01","2018-01-01-0000-00M","COMB__033")
+    elif sys.argv[1] == "bulk":
+        get_waveforms_bulk("2018_01")
