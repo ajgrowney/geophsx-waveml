@@ -14,11 +14,9 @@ from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 
 def get_single_stream(path):
 
-    st = read(path)
-    # temp1 = read("./02/2018-02-14-1329-50M.NSN___036") # obspy Stream
-    # print((temp1))
-    # print((st))
-    return st
+    st = read(path, format="MSEED")
+    # temp1 = st = Stream(st)read("./02/2018-02-14-1329-50M.NSN___036") # obspy Stream
+    return (st)
 
 def get_waveforms_bulk(folder):
     all_streams_in_folder = glob.glob('./'+folder+"/*")
@@ -35,7 +33,6 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
         raise IOError('Template files not found, have you run the template ')
 
     templates = [read(template_name) for template_name in template_names]
-
     # Work out what stations we have and get the data for them
     stations = []
     for template in templates:
@@ -70,7 +67,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # Note this will take a little while.
     print('Downloading seismic data locally from 2018_01')
     streams = get_waveforms_bulk("2018_01")
-    streams = [streams[0]]
+    #streams = [streams[0]]
 
     # DONE: Do we need to merge the stream
     # Merge the stream, it will be downloaded in chunks
@@ -96,7 +93,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
         print(type(st))
         detections = match_filter.match_filter(
             template_names=template_names, template_list=templates, trig_int=1.0,
-            st=st, threshold=5.0, threshold_type='MAD', tribulk_infog_int=6.0,
+            st=st, threshold=1.0, threshold_type='MAD', tribulk_infog_int=1.0,
             plotvar=False, cores=num_cores, debug=0)
 
         # Now lets try and work out how many unique events we have just to
