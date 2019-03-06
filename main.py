@@ -91,10 +91,16 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     for st in streams:
         # Now we can conduct the matched-filter detection
         print(type(st))
+        st = st.select(channel="EH*")
+        print(st._get_common_channels_info())
+        print((st))
+        print(type(templates[0]))
+        templates = [st]
+        template_names = ['Template 1']
+
         detections = match_filter.match_filter(
             template_names=template_names, template_list=templates, trig_int=1.0,
-            st=st, threshold=1.0, threshold_type='MAD', tribulk_infog_int=1.0,
-            plotvar=False, cores=num_cores, debug=0)
+            st=st, threshold=0.5, threshold_type='MAD', plotvar=True, cores=num_cores)
 
         # Now lets try and work out how many unique events we have just to
         # compare with the GeoNet catalog of 20 events on this day in this
