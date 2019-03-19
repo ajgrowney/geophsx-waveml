@@ -90,13 +90,9 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
 
     for st in streams:
         # Now we can conduct the matched-filter detection
-        print(type(st))
         st = st.select(channel="EH*")
-        print(st._get_common_channels_info())
-        print((st))
-        print(type(templates[0]))
         [tr.decimate(factor=4, strict_length=False) for tr in st]
-        templates = [st]
+        templates = [templates[0]]
         template_names = ['Template 1']
 
         detections = match_filter.match_filter(
