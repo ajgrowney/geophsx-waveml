@@ -26,9 +26,16 @@ def get_waveforms_bulk(folder):
 
 def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
+
     # First we want to load our templates
     # template_names = glob.glob('tutorial_template_*.ms')
-    template_names = glob.glob('./02/*.NSN___036')
+    # template_names = glob.glob('./02/*.NSN___033')
+    template_names = glob.glob('./02/*')
+    print("Template Names")
+    print(template_names)
+    print("")
+    print("")
+
     if len(template_names) == 0:
         raise IOError('Template files not found, have you run the template ')
 
@@ -43,31 +50,16 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
 
     unique_detections = []
 
-    # Note that these chunks do not rely on each other, and could be paralleled
-    # on multiple nodes of a distributed cluster, see the SLURM tutorial for
-    # an example of this.
-    # for t1, t2 in chunks:
-    #     # Generate the bulk information to query the GeoNet database
-    #     t1Folder = str(t1.year) + "_" + (str(t1.month).zfill(2)) # '2018_01'
-    #     t2Folder = str(t2.year) + "_" + (str(t2.month).zfill(2)) # '2018_01'
-    #
-    #     bulk_info = []
-    #     for station in stations:
-    #         print("Station",type(station))
-    #         print("Time",type(t1),t2)
-    #         print("Month t1", t1.minute, t2.minute)
-    #         print(t1Folder)
-    #         print(station)
-    #         print(station[0])
-    #         print(station[1][-1])
-    #         bulk_info.append(())
-    #         return
+    print("Templates")
+    print(templates)
+    print("")
+    print("")
 
     # DONE: Find effective method to get our waveforms in bulk
     # Note this will take a little while.
     print('Downloading seismic data locally from 2018_01')
     streams = get_waveforms_bulk("2018_01")
-    #streams = [streams[0]]
+    # streams = [streams[0]]
 
     # DONE: Do we need to merge the stream
     # Merge the stream, it will be downloaded in chunks
@@ -79,60 +71,70 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # the template creation.
     print('Processing the seismic data')
 
-    # for st in streams:
-    #     print(vars(st))
-    #     return
-    #     st = pre_processing.shortproc(
-    #         st, lowcut=2.0, highcut=9.0, filt_order=4, samp_rate=20.0,
-    #         debug=0, num_cores=num_cores, starttime=t1, endtime=t2)
-    #     # Convert from list to stream
-    #     st = Stream(st)
+    print("Sampling Rates")
 
-    for st in streams:
-        # Now we can conduct the matched-filter detection
-        st = st.select(channel="EH*")
-        [tr.decimate(factor=4, strict_length=False) for tr in st]
-        templates = [templates[0]]
-        template_names = ['Template 1']
+    for st in templates:
+        for tr in st:
+            tr.stats.sampling_rate = 50.0;
+            print(tr.stats.sampling_rate)
 
-        detections = match_filter.match_filter(
-            template_names=template_names, template_list=templates, trig_int=1.0,
-            st=st, threshold=0.5, threshold_type='MAD', plotvar=False, cores=num_cores)
+    for iters in range(len(template_names)) :
+        for st in streams:
+            # Now we can conduct the matched-filter detection
+            st = st.select(channel="EH*")    # for st in streams:
 
-        # Now lets try and work out how many unique events we have just to
-        # compare with the GeoNet catalog of 20 events on this day in this
-        # sequence
-        for master in detections:
-            keep = True
-            for slave in detections:
-                if not master == slave and abs(master.detect_time -
-                                               slave.detect_time) <= 1.0:
-                    # If the events are within 1s of each other then test which
-                    # was the 'best' match, strongest detection
-                    if not master.detect_val > slave.detect_val:
-                        keep = False
-                        print('Removed detection at %s with cccsum %s'
-                              % (master.detect_time, master.detect_val))
-                        print('Keeping detection at %s with cccsum %s'
-                              % (slave.detect_time, slave.detect_val))
-                        break
-            if keep:
-                unique_detections.append(master)
-                print('Detection at :' + str(master.detect_time) +
-                      ' for template ' + master.template_name +
-                      ' with a cross-correlation sum of: ' +
-                      str(master.detect_val))
-                # We can plot these too
-                if plot:
-                    stplot = st.copy()
-                    template = templates[template_names.index(
-                        master.template_name)]
-                    lags = sorted([tr.stats.starttime for tr in template])
-                    maxlag = lags[-1] - lags[0]
-                    stplot.trim(starttime=master.detect_time - 10,
-                                endtime=master.detect_time + maxlag + 10)
-                    plotting.detection_multiplot(
-                        stplot, template, [master.detect_time.datetime])
+            [tr.decimate(factor=4, strict_length=False) for tr in st]
+            print("BICK");
+            print("ST ST: ", st)
+            print(" ")
+            print("BICK MEAT");
+            print("Template ", templates[iters])
+            template = [templates[iters]]
+
+            print(" ")
+            print("BICK MEAT");
+            # template = Stream(tr[0] for tr in templates[iters])
+            # print("NEW TEMPLATE ", template)
+            template_name = [template_names[iters]]
+
+            detections = match_filter.match_filter(
+                template_names=template_name, template_list=template, trig_int=1.0,
+                st=st, threshold=0.5, threshold_type='MAD', plotvar=False, cores=num_cores)
+
+            # Now lets try and work out how many unique events we have just to
+            # compare with the GeoNet catalog of 20 events on this day in this
+            # sequence
+            for master in detections:
+                keep = True
+                for slave in detections:
+                    if not master == slave and abs(master.detect_time -
+                                                   slave.detect_time) <= 1.0:
+                        # If the events are within 1s of each other then test which
+                        # was the 'best' match, strongest detection
+                        if not master.detect_val > slave.detect_val:
+                            keep = False
+                            print('Removed detection at %s with cccsum %s'
+                                  % (master.detect_time, master.detect_val))
+                            print('Keeping detection at %s with cccsum %s'
+                                  % (slave.detect_time, slave.detect_val))
+                            break
+                if keep:
+                    unique_detections.append(master)
+                    print('Detection at :' + str(master.detect_time) +
+                          ' for template ' + master.template_name +
+                          ' with a cross-correlation sum of: ' +
+                          str(master.detect_val))
+                    # We can plot these too
+                    if plot:
+                        stplot = st.copy()
+                        template = templates[template_names.index(
+                            master.template_name)]
+                        lags = sorted([tr.stats.starttime for tr in template])
+                        maxlag = lags[-1] - lags[0]
+                        stplot.trim(starttime=master.detect_time - 10,
+                                    endtime=master.detect_time + maxlag + 10)
+                        plotting.detection_multiplot(
+                            stplot, template, [master.detect_time.datetime])
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
     return unique_detections
 
