@@ -30,7 +30,8 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # First we want to load our templates
     # template_names = glob.glob('tutorial_template_*.ms')
     # template_names = glob.glob('./02/*.NSN___033')
-    template_names = glob.glob('./02/*')
+    template_names = glob.glob('./01/*.NSN___030')
+
     print("Template Names")
     print(template_names)
     print("")
@@ -73,33 +74,31 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
 
     print("Sampling Rates")
 
-    for st in templates:
-        for tr in st:
-            tr.stats.sampling_rate = 50.0;
-            print(tr.stats.sampling_rate)
+
 
     for iters in range(len(template_names)) :
         for st in streams:
             # Now we can conduct the matched-filter detection
             st = st.select(channel="EH*")    # for st in streams:
 
-            [tr.decimate(factor=4, strict_length=False) for tr in st]
-            print("BICK");
-            print("ST ST: ", st)
+            #[tr.decimate(factor=4, strict_length=False) for tr in st]
+            print("ST:", st)
             print(" ")
-            print("BICK MEAT");
             print("Template ", templates[iters])
             template = [templates[iters]]
 
+            for st2 in template:
+                for tr in range(len(st2)):
+                    st2[tr].stats.sampling_rate = st[tr].stats.sampling_rate;
+
             print(" ")
-            print("BICK MEAT");
             # template = Stream(tr[0] for tr in templates[iters])
             # print("NEW TEMPLATE ", template)
             template_name = [template_names[iters]]
 
             detections = match_filter.match_filter(
                 template_names=template_name, template_list=template, trig_int=1.0,
-                st=st, threshold=0.5, threshold_type='MAD', plotvar=False, cores=num_cores)
+                st=st, threshold=1.0, threshold_type='MAD', plotvar=False, cores=num_cores)
 
             # Now lets try and work out how many unique events we have just to
             # compare with the GeoNet catalog of 20 events on this day in this
@@ -113,12 +112,12 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
                         # was the 'best' match, strongest detection
                         if not master.detect_val > slave.detect_val:
                             keep = False
-                            print('Removed detection at %s with cccsum %s'
-                                  % (master.detect_time, master.detect_val))
-                            print('Keeping detection at %s with cccsum %s'
-                                  % (slave.detect_time, slave.detect_val))
+                            #print('Removed detection at %s with cccsum %s'
+                            #      % (master.detect_time, master.detect_val))
+                            #print('Keeping detection at %s with cccsum %s'
+                            #      % (slave.detect_time, slave.detect_val))
                             break
-                if keep:
+                if keep and master.detect_val > 2.0:
                     unique_detections.append(master)
                     print('Detection at :' + str(master.detect_time) +
                           ' for template ' + master.template_name +
