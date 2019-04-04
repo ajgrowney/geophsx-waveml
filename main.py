@@ -81,18 +81,11 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
             # Now we can conduct the matched-filter detection
             st = st.select(channel="EH*")    # for st in streams:
 
-            #[tr.decimate(factor=4, strict_length=False) for tr in st]
             print("ST:", st)
             print(" ")
             print("Template ", templates[iters])
             template = [templates[iters]]
 
-            for st2 in template:
-                for tr in range(len(st2)):
-                    st2[tr].stats.sampling_rate = st[tr].stats.sampling_rate;
-
-            print(" ")
-            # template = Stream(tr[0] for tr in templates[iters])
             # print("NEW TEMPLATE ", template)
             template_name = [template_names[iters]]
 
