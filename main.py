@@ -1,6 +1,9 @@
 import sys
 import warnings
 import glob
+import numpy as np
+import matplotlib.pyplot as plt
+import obspy
 from pprint import pprint
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
@@ -87,6 +90,9 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
             print("Template ", templates[iters])
             template = [templates[iters]]
 
+            # ShowPlots(template)
+            ShowPlots(st, template[0])
+
             # print("NEW TEMPLATE ", template)
             template_name = [template_names[iters]]
 
@@ -125,7 +131,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
                         lags = sorted([tr.stats.starttime for tr in template])
                         maxlag = lags[-1] - lags[0]
                         stplot.trim(starttime=master.detect_time - 10,
-                                    endtime=master.detect_time + maxlag + 10)
+                        endtime=master.detect_time + maxlag + 10)
                         plotting.detection_multiplot(
                             stplot, template, [master.detect_time.datetime])
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
@@ -215,6 +221,35 @@ def run_pickAndLag_tutorial(min_magnitude=2, shift_len=0.2, num_cores=4, min_cc=
     # Return all of this so that we can use this function for testing.
     return all_detections, picked_catalog, templates, template_names
 
+def ShowTemplates():
+    #steams and templates
+    print("FINISHING TEMPLATE PLOTS")
+
+def ShowPlots(stream, template):
+    for temp in template:
+        tr_filt = temp.copy()
+
+        tr_filt.filter('lowpass', freq=1.0, corners=2, zerophase=True)
+
+        t = np.arange(0, temp.stats.npts / temp.stats.sampling_rate, temp.stats.delta)
+        plt.subplot(211)
+        plt.plot(t, tr_filt.data, 'k')
+        plt.ylabel('Template')
+        plt.xlabel('Time [s]')
+
+        plt.subplot(212)
+        for tr in stream:
+            tr_filt_st = tr.copy()
+
+            tr_filt_st.filter('lowpass', freq=1.0, corners=2, zerophase=True)
+
+            t_s = np.arange(0, tr.stats.npts / tr.stats.sampling_rate, tr.stats.delta)
+            plt.plot(t_s, tr_filt_st.data, 'k')
+            plt.ylabel('Lowpassed Stream Data')
+            plt.xlabel('Time [s]')
+            plt.show()
+
+    print("FINISHING STREAM PLOTS")
 
 if __name__ == '__main__':
     if sys.argv[1] == "pickAndLag" :
