@@ -15,16 +15,16 @@ from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 def get_single_stream(path):
 
     st = read(path, format="MSEED")
-    # temp1 = st = Stream(st)read("./02/2018-02-14-1329-50M.NSN___036") # obspy Stream
     return (st)
 
 def get_waveforms_bulk(folder):
     all_streams_in_folder = glob.glob('./'+folder+"/*")
     bulk_return = []
     bulk_return.append(get_single_stream(all_streams_in_folder[0]))
+    bulk_return.append(get_single_stream(all_streams_in_folder[1]))
     return bulk_return
 
-def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
+def run_matchFilter(plot=True, process_len=100, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
 
     # First we want to load our templates
@@ -90,12 +90,10 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
             template_name = [template_names[iters]]
 
             detections = match_filter.match_filter(
-                template_names=template_name, template_list=template, trig_int=1.0,
-                st=st, threshold=1.0, threshold_type='MAD', plotvar=False, cores=num_cores)
+                template_names=template_name, template_list=template, trig_int=5.0,
+                st=st, threshold=3.0, threshold_type='absolute', plotvar=False, cores=num_cores)
 
-            # Now lets try and work out how many unique events we have just to
-            # compare with the GeoNet catalog of 20 events on this day in this
-            # sequence
+
             for master in detections:
                 keep = True
                 for slave in detections:
@@ -110,7 +108,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
                             #print('Keeping detection at %s with cccsum %s'
                             #      % (slave.detect_time, slave.detect_val))
                             break
-                if keep and master.detect_val > 2.0:
+                if keep:
                     unique_detections.append(master)
                     print('Detection at :' + str(master.detect_time) +
                           ' for template ' + master.template_name +
@@ -119,8 +117,10 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
                     # We can plot these too
                     if plot:
                         stplot = st.copy()
+                        print("\nST Detection: ",stplot)
                         template = templates[template_names.index(
                             master.template_name)]
+                        print("\nTemplate Detection: ",template)
                         lags = sorted([tr.stats.starttime for tr in template])
                         maxlag = lags[-1] - lags[0]
                         stplot.trim(starttime=master.detect_time - 10,
@@ -128,6 +128,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
                         plotting.detection_multiplot(
                             stplot, template, [master.detect_time.datetime])
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
+    print(len(templates),len(template_names))
     return unique_detections
 
 def run_pickAndLag_tutorial(min_magnitude=2, shift_len=0.2, num_cores=4, min_cc=0.5):
@@ -219,6 +220,7 @@ if __name__ == '__main__':
     if sys.argv[1] == "pickAndLag" :
         run_pickAndLag_tutorial(min_magnitude=4, num_cores=cpu_count())
     elif sys.argv[1] == "matchFilter":
-        run_matchFilter()
+        detections = run_matchFilter()
+        print("RETURNED:", detections)
     elif sys.argv[1] == "bulk":
         get_waveforms_bulk("2018_01")
