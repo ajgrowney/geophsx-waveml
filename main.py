@@ -9,6 +9,7 @@ from obspy import UTCDateTime, Stream, read
 from multiprocessing import cpu_count
 from eqcorrscan.utils.catalog_utils import filter_picks
 
+from eqcorrscan.utils.plotting import spec_trace
 from eqcorrscan.core import template_gen, match_filter, lag_calc
 from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 
@@ -30,7 +31,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # First we want to load our templates
     # template_names = glob.glob('tutorial_template_*.ms')
     # template_names = glob.glob('./02/*.NSN___033')
-    template_names = glob.glob('./01/*.NSN___030')
+    template_names = glob.glob('./02/*')
 
     print("Template Names")
     print(template_names)
@@ -66,7 +67,7 @@ def run_matchFilter(plot=False, process_len=100, num_cores=cpu_count()):
     # Merge the stream, it will be downloaded in chunks
     for st in streams:
         st.merge(fill_value='interpolate')
-
+	#spec_trace(st,trc='white')
     # Pre-process the data to set frequency band and sampling rate
     # Note that this is, and MUST BE the same as the parameters used for
     # the template creation.
