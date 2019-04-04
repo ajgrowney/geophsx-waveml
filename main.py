@@ -165,9 +165,8 @@ def ShowPlots(stream, template):
 
 def analyzeDetections(detections):
     detectValSorted = sorted(detections, key=lambda x: x.detect_val, reverse=True)
-    pairs = [(x.template_name,x.detect_time) for x in detections]
-    print(detectValSorted)
-    print(pairs)
+    pairs = [('Template: ' + x.template_name,'Detection: '+str(x.detect_time),'Value: '+str(x.detect_val)) for x in detections]
+    [print(pair) for pair in pairs]
 
 if __name__ == '__main__':
     if sys.argv[1] == "pickAndLag" :
