@@ -28,7 +28,7 @@ def get_waveforms_bulk(folder):
     bulk_return.append(get_single_stream(all_streams_in_folder[1]))
     return bulk_return
 
-def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, num_cores=cpu_count()):
+def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
 
     # First we want to load our templates
@@ -79,7 +79,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, num_cores=
     print("Sampling Rates")
 
 
-
+    picked_catalog = Catalog()
     for template, template_name in zip(templates, template_names) :
         for st in streams:
             # Now we can conduct the matched-filter detection
@@ -130,8 +130,16 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, num_cores=
                         endtime=master.detect_time + maxlag + 10)
                         plotting.detection_multiplot(
                             stplot, template, [master.detect_time.datetime])
+
+                picked_catalog += lag_calc.lag_calc(
+                            detections=unique_detections, detect_data=st,
+                            template_names=[template_name], templates=[template],
+                            shift_len=1.0, min_cc=min_cc, interpolate=False, plot=False,
+                            parallel=True, debug=3)
+                print(len(picked_catalog))
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
-    return unique_detections
+
+    return unique_detections, picked_catalog
 
 def ShowTemplates():
     #steams and templates
@@ -166,13 +174,14 @@ def ShowPlots(stream, template):
 def analyzeDetections(detections):
     detectValSorted = sorted(detections, key=lambda x: x.detect_val, reverse=True)
     pairs = [('Template: ' + x.template_name,'Detection: '+str(x.detect_time),'Value: '+str(x.detect_val)) for x in detections]
-    [print(pair) for pair in pairs]
-
+    [ print(pair) for pair in pairs]
 if __name__ == '__main__':
-    if sys.argv[1] == "pickAndLag" :
-        run_pickAndLag_tutorial(min_magnitude=4, num_cores=cpu_count())
-    elif sys.argv[1] == "matchFilter":
-        detections = run_matchFilter(method=sys.argv[2], threshold=float(sys.argv[3]))
+
+    if sys.argv[1] == "matchFilter":
+        method = sys.argv[2] if len(sys.argv) > 2 else 'absolute'
+        threshold = sys.argv[3] if len(sys.argv) > 3 else 3.0
+        
+        detections, picks = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
         get_waveforms_bulk("2018_01")
