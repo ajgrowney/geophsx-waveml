@@ -83,7 +83,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     for template, template_name in zip(templates, template_names) :
         for st in streams:
             # Now we can conduct the matched-filter detection
-            # st = st.select(channel="EH*")    # Select specific channels
+            st = st.select(station="WK*")    # Select specific channels
             st = st.normalize()
 
 
@@ -179,8 +179,8 @@ if __name__ == '__main__':
 
     if sys.argv[1] == "matchFilter":
         method = sys.argv[2] if len(sys.argv) > 2 else 'absolute'
-        threshold = sys.argv[3] if len(sys.argv) > 3 else 3.0
-        
+        threshold = float(sys.argv[3]) if len(sys.argv) > 3 else 3.0
+
         detections, picks = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
