@@ -3,6 +3,7 @@ import warnings
 import glob
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 import obspy
 from pprint import pprint
 from obspy.clients.fdsn import Client
@@ -15,6 +16,12 @@ from eqcorrscan.utils.catalog_utils import filter_picks
 from eqcorrscan.utils.plotting import spec_trace
 from eqcorrscan.core import template_gen, match_filter, lag_calc
 from eqcorrscan.utils import pre_processing, catalog_utils, plotting
+
+# Error with conflicting installations of numpy
+# Solution is to specify
+# Solution link > https://stackoverflow.com/questions/20554074/sklearn-omp-error-15-when-fitting-models
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def get_single_stream(path):
 
@@ -78,24 +85,16 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
 
     print("Sampling Rates")
 
-
     picked_catalog = Catalog()
     for template, template_name in zip(templates, template_names) :
         for st in streams:
             # Now we can conduct the matched-filter detection
-            st = st.select(station="WK*")    # Select specific channels
+            st = st.select(station="WK*")    # Select specific stations
             st = st.normalize()
-
-
-            # ShowPlots(template)
-            # ShowPlots(st, template[0])
-
-            # print("NEW TEMPLATE ", template)
 
             detections = match_filter.match_filter(
                 template_names=[template_name], template_list=[template], trig_int=5.0,
                 st=st, threshold=threshold, threshold_type=method, plotvar=False, cores=num_cores)
-
 
             for master in detections:
                 keep = True
@@ -118,6 +117,22 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                           ' with a cross-correlation sum of: ' +
                           str(master.detect_val))
                     # We can plot these too
+                    print("------------------------------")
+                    print(master)
+                    print(detections)
+                    tm = master.detect_time
+                    print(tm)
+                    print(tm.hour)
+                    print(tm.minute)
+                    print(tm.second)
+                    print(tm.microsecond)
+                    timeInSeconds = tm.hour*60*60+tm.minute*60+tm.second+tm.microsecond*0.000001
+                    print(timeInSeconds)
+                    print("------------------------------")
+                    count = 0
+                    for trace, trace_temp in zip(st, template):
+                        ShowPlots(trace, trace_temp, template_name, timeInSeconds, str(len(unique_detections)), count)
+                        count += 1
                     if plot:
                         stplot = st.copy()
                         print("\nST Detection: ",stplot)
@@ -141,34 +156,31 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
 
     return unique_detections, picked_catalog
 
-def ShowTemplates():
-    #steams and templates
-    print("FINISHING TEMPLATE PLOTS")
+def ShowPlots(stream, template, tempName, tm, detectCount, count):
+    tr_filt = template.copy()
 
-def ShowPlots(stream, template):
-    for temp in template:
-        tr_filt = temp.copy()
+    tr_filt.filter('lowpass', freq=1.0, corners=2, zerophase=True)
 
-        tr_filt.filter('lowpass', freq=1.0, corners=2, zerophase=True)
+    t = np.arange(0, template.stats.npts / template.stats.sampling_rate, template.stats.delta)
+    ax1 = plt.subplot(211)
+    # ax1.set_xlim(left=tm)
 
-        t = np.arange(0, temp.stats.npts / temp.stats.sampling_rate, temp.stats.delta)
-        plt.subplot(211)
-        plt.plot(t, tr_filt.data, 'k')
-        plt.ylabel('Template')
-        plt.xlabel('Time [s]')
+    plt.plot(t, tr_filt.data, 'k')
+    plt.ylabel('Template - ' + tempName)
+    plt.xlabel('Time [s]')
 
-        plt.subplot(212)
-        for tr in stream:
-            tr_filt_st = tr.copy()
+    ax2 = plt.subplot(212)
+    tr_filt_st = stream.copy()
 
-            tr_filt_st.filter('lowpass', freq=1.0, corners=2, zerophase=True)
+    tr_filt_st.filter('lowpass', freq=5.0, corners=2, zerophase=True)
+    ax2.set_xlim(left=tm, right=(tm+160))
 
-            t_s = np.arange(0, tr.stats.npts / tr.stats.sampling_rate, tr.stats.delta)
-            plt.plot(t_s, tr_filt_st.data, 'k')
-            plt.ylabel('Lowpassed Stream Data')
-            plt.xlabel('Time [s]')
-            plt.show()
-
+    t_s = np.arange(0, tr_filt_st.stats.npts / tr_filt_st.stats.sampling_rate, tr_filt_st.stats.delta)
+    plt.plot(t_s, tr_filt_st.data, 'k')
+    plt.ylabel('Lowpassed Stream Data')
+    plt.xlabel('Time [s]')
+    plt.savefig('./plots/'+detectCount+'-'+str(count)+'.jpg')
+    plt.show()
     print("FINISHING STREAM PLOTS")
 
 def analyzeDetections(detections):
