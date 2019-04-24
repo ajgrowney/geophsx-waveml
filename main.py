@@ -8,6 +8,7 @@ import obspy
 from pprint import pprint
 from obspy.clients.fdsn import Client
 from obspy.core.event import Catalog
+from obspy.signal.filter import bandpass
 from obspy import read_events
 from obspy import UTCDateTime, Stream, read
 from multiprocessing import cpu_count
@@ -35,66 +36,56 @@ def get_waveforms_bulk(folder):
     bulk_return.append(get_single_stream(all_streams_in_folder[1]))
     return bulk_return
 
+def filterStream(stream):
+
+    filtered_stream = stream.filter('bandpass',freqmin=3.0, freqmax=20.0)
+    return filtered_stream
+
+
 def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
 
     # First we want to load our templates
-    # template_names = glob.glob('tutorial_template_*.ms')
-    # template_names = glob.glob('./02/*.NSN___033')
     template_names = glob.glob('./01/*.NSN___030')
 
     print("Template Names")
     print(template_names)
-    print("")
     print("")
 
     if len(template_names) == 0:
         raise IOError('Template files not found, have you run the template ')
 
     templates = [read(template_name) for template_name in template_names]
-    # Work out what stations we have and get the data for them
-    stations = []
-    for template in templates:
-        for tr in template:
-            stations.append((tr.stats.station, tr.stats.channel))
-    # Get a unique list of stations
-    stations = list(set(stations))
 
-    unique_detections = []
 
     print("Templates")
     print(templates)
     print("")
-    print("")
 
-    # DONE: Find effective method to get our waveforms in bulk
-    # Note this will take a little while.
+    # DONE: Get Stream Data to compare against templates
     print('Downloading seismic data locally from 2018_01')
     streams = get_waveforms_bulk("2018_01")
-    # streams = [streams[0]]
 
-    # DONE: Do we need to merge the stream
-    # Merge the stream, it will be downloaded in chunks
-    for st in streams:
-        st.merge(fill_value='interpolate')
-	#spec_trace(st,trc='white')
-    # Pre-process the data to set frequency band and sampling rate
-    # Note that this is, and MUST BE the same as the parameters used for
-    # the template creation.
-    print('Processing the seismic data')
+    # Initialize all return values
+    unique_detections, picked_catalog, detectedWaveforms = [], Catalog(), []
 
-    print("Sampling Rates")
-
-    picked_catalog = Catalog()
     for template, template_name in zip(templates, template_names) :
         for st in streams:
             # Now we can conduct the matched-filter detection
             st = st.select(station="WK*")    # Select specific stations
-            st = st.normalize()
+            st = filterStream(st)
 
             detections = match_filter.match_filter(
                 template_names=[template_name], template_list=[template], trig_int=5.0,
                 st=st, threshold=threshold, threshold_type=method, plotvar=False, cores=num_cores)
+
+
+            if len(detections) > 0:
+                waveforms = match_filter.extract_from_stream(st,detections)
+                detectedWaveforms += waveforms
+                for w in waveforms:
+                    w.plot()
+
 
             for master in detections:
                 keep = True
@@ -116,45 +107,44 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                           ' for template ' + master.template_name +
                           ' with a cross-correlation sum of: ' +
                           str(master.detect_val))
-                    # We can plot these too
-                    print("------------------------------")
-                    print(master)
-                    print(detections)
-                    tm = master.detect_time
-                    print(tm)
-                    print(tm.hour)
-                    print(tm.minute)
-                    print(tm.second)
-                    print(tm.microsecond)
-                    timeInSeconds = tm.hour*60*60+tm.minute*60+tm.second+tm.microsecond*0.000001
-                    print(timeInSeconds)
-                    print("------------------------------")
-                    count = 0
-                    for trace, trace_temp in zip(st, template):
-                        ShowPlots(trace, trace_temp, template_name, timeInSeconds, str(len(unique_detections)), count)
-                        count += 1
-                    if plot:
-                        stplot = st.copy()
-                        print("\nST Detection: ",stplot)
-                        template = templates[template_names.index(
-                            master.template_name)]
-                        print("\nTemplate Detection: ",template)
-                        lags = sorted([tr.stats.starttime for tr in template])
-                        maxlag = lags[-1] - lags[0]
-                        stplot.trim(starttime=master.detect_time - 10,
-                        endtime=master.detect_time + maxlag + 10)
-                        plotting.detection_multiplot(
-                            stplot, template, [master.detect_time.datetime])
+                    # # We can plot these too
+                    # print("------------------------------")
+                    # print(master)
+                    # print(detections)
+                    # tm = master.detect_time
+                    # print(tm)
+                    # print(tm.hour)
+                    # print(tm.minute)
+                    # print(tm.second)
+                    # print(tm.microsecond)
+                    # timeInSeconds = tm.hour*60*60+tm.minute*60+tm.second+tm.microsecond*0.000001
+                    # print(timeInSeconds)
+                    # print("------------------------------")
+                    # count = 0
+                    # for trace, trace_temp in zip(st, template):
+                    #     ShowPlots(trace, trace_temp, template_name, timeInSeconds, str(len(unique_detections)), count)
+                    #     count += 1
+                    # if plot:
+                    #     stplot = st.copy()
+                    #     print("\nST Detection: ",stplot)
+                    #     template = templates[template_names.index(
+                    #         master.template_name)]
+                    #     print("\nTemplate Detection: ",template)
+                    #     lags = sorted([tr.stats.starttime for tr in template])
+                    #     maxlag = lags[-1] - lags[0]
+                    #     stplot.trim(starttime=master.detect_time - 10,
+                    #     endtime=master.detect_time + maxlag + 10)
+                    #     plotting.detection_multiplot(
+                    #         stplot, template, [master.detect_time.datetime])
 
                 picked_catalog += lag_calc.lag_calc(
                             detections=unique_detections, detect_data=st,
                             template_names=[template_name], templates=[template],
                             shift_len=1.0, min_cc=min_cc, interpolate=False, plot=False,
                             parallel=True, debug=3)
-                print(len(picked_catalog))
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
-
-    return unique_detections, picked_catalog
+    print('We made '+str(len(picked_catalog))+ ' picks')
+    return unique_detections, picked_catalog, detectedWaveforms
 
 def ShowPlots(stream, template, tempName, tm, detectCount, count):
     tr_filt = template.copy()
@@ -193,7 +183,8 @@ if __name__ == '__main__':
         method = sys.argv[2] if len(sys.argv) > 2 else 'absolute'
         threshold = float(sys.argv[3]) if len(sys.argv) > 3 else 3.0
 
-        detections, picks = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
+        detections, picks,waveforms = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
+
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
         get_waveforms_bulk("2018_01")
