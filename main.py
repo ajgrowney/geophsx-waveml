@@ -46,7 +46,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     """Main function to run the tutorial dataset."""
 
     # First we want to load our templates
-    template_names = glob.glob('./01/*.NSN___030')
+    template_names = glob.glob('./07/*.NSN___030')
 
     print("Template Names")
     print(template_names)
@@ -63,8 +63,11 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     print("")
 
     # DONE: Get Stream Data to compare against templates
-    print('Downloading seismic data locally from 2018_01')
-    streams = get_waveforms_bulk("2018_01")
+    print('Downloading seismic data locally from 2016_07')
+    streams = get_waveforms_bulk("2016_07")
+    print("Streams")
+    print(streams[0])
+    print("...")
 
     # Initialize all return values
     unique_detections, picked_catalog, detectedWaveforms = [], Catalog(), []
@@ -79,12 +82,15 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                 template_names=[template_name], template_list=[template], trig_int=5.0,
                 st=st, threshold=threshold, threshold_type=method, plotvar=False, cores=num_cores)
 
-
             if len(detections) > 0:
                 waveforms = match_filter.extract_from_stream(st,detections)
                 detectedWaveforms += waveforms
-                for w in waveforms:
-                    w.plot()
+                times = [min([pk.time -0.05 for pk in event.picks])]
+                detection_multiplot(stream=waveforms, template=template, times=times)
+                # for w,templ in zip(waveforms,template):
+                #     templ.plot()
+                #     w.plot()
+                    
 
 
             for master in detections:
@@ -183,8 +189,8 @@ if __name__ == '__main__':
         method = sys.argv[2] if len(sys.argv) > 2 else 'absolute'
         threshold = float(sys.argv[3]) if len(sys.argv) > 3 else 3.0
 
-        detections, picks,waveforms = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
+        detections, picks,waveforms = run_matchFilter(method=method, threshold=2.0, min_cc=0.5)
 
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
-        get_waveforms_bulk("2018_01")
+        get_waveforms_bulk("2016_07")
