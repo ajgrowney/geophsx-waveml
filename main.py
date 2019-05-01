@@ -18,6 +18,11 @@ from eqcorrscan.utils.plotting import spec_trace
 from eqcorrscan.core import template_gen, match_filter, lag_calc
 from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 
+
+class NullWriter(object):
+    def write(self, arg):
+        pass
+
 # Error with conflicting installations of numpy
 # Solution is to specify
 # Solution link > https://stackoverflow.com/questions/20554074/sklearn-omp-error-15-when-fitting-models
@@ -44,7 +49,7 @@ def filterStream(stream):
 
 def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5, num_cores=cpu_count()):
     """Main function to run the tutorial dataset."""
-
+    nullwrite = NullWriter()
     # First we want to load our templates
     template_names = glob.glob('./07/*.NSN___030')
 
@@ -77,20 +82,22 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
             # Now we can conduct the matched-filter detection
             st = st.select(station="WK*")    # Select specific stations
             st = filterStream(st)
-
+            oldout = sys.stdout
+            sys.stdout = nullwrite
             detections = match_filter.match_filter(
                 template_names=[template_name], template_list=[template], trig_int=5.0,
                 st=st, threshold=threshold, threshold_type=method, plotvar=False, cores=num_cores)
+            sys.stdout = oldout
 
             if len(detections) > 0:
                 waveforms = match_filter.extract_from_stream(st,detections)
                 detectedWaveforms += waveforms
-                times = [min([pk.time -0.05 for pk in event.picks])]
-                detection_multiplot(stream=waveforms, template=template, times=times)
+#                times = [min([pk.time -0.05 for pk in event.picks])]
+#                detection_multiplot(stream=waveforms, template=template, times=times)
                 # for w,templ in zip(waveforms,template):
                 #     templ.plot()
                 #     w.plot()
-                    
+
 
 
             for master in detections:
@@ -143,13 +150,17 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                     #     plotting.detection_multiplot(
                     #         stplot, template, [master.detect_time.datetime])
 
+                oldout = sys.stdout
+                sys.stdout = nullwrite
                 picked_catalog += lag_calc.lag_calc(
                             detections=unique_detections, detect_data=st,
                             template_names=[template_name], templates=[template],
                             shift_len=1.0, min_cc=min_cc, interpolate=False, plot=False,
                             parallel=True, debug=3)
+                sys.stdout = oldout
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
     print('We made '+str(len(picked_catalog))+ ' picks')
+    print('We have '+str(len(detectedWaveforms)) + ' detected waveforms')
     return unique_detections, picked_catalog, detectedWaveforms
 
 def ShowPlots(stream, template, tempName, tm, detectCount, count):
