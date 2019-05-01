@@ -14,7 +14,7 @@ from obspy import UTCDateTime, Stream, read
 from multiprocessing import cpu_count
 from eqcorrscan.utils.catalog_utils import filter_picks
 
-from eqcorrscan.utils.plotting import spec_trace
+from eqcorrscan.utils.plotting import spec_trace, detection_multiplot
 from eqcorrscan.core import template_gen, match_filter, lag_calc
 from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 
@@ -22,6 +22,7 @@ from eqcorrscan.utils import pre_processing, catalog_utils, plotting
 class NullWriter(object):
     def write(self, arg):
         pass
+
 
 # Error with conflicting installations of numpy
 # Solution is to specify
@@ -36,9 +37,9 @@ def get_single_stream(path):
 
 def get_waveforms_bulk(folder):
     all_streams_in_folder = glob.glob('./'+folder+"/*")
-    bulk_return = []
-    bulk_return.append(get_single_stream(all_streams_in_folder[0]))
-    bulk_return.append(get_single_stream(all_streams_in_folder[1]))
+    bulk_return = [get_single_stream(st) for st in all_streams_in_folder]
+    # bulk_return.append(get_single_stream(all_streams_in_folder[0]))
+    # bulk_return.append(get_single_stream(all_streams_in_folder[1]))
     return bulk_return
 
 def filterStream(stream):
@@ -63,16 +64,16 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     templates = [read(template_name) for template_name in template_names]
 
 
-    print("Templates")
-    print(templates)
-    print("")
+    # print("Templates")
+    # print(templates)
+    # print("")
 
     # DONE: Get Stream Data to compare against templates
     print('Downloading seismic data locally from 2016_07')
     streams = get_waveforms_bulk("2016_07")
-    print("Streams")
-    print(streams[0])
-    print("...")
+    # print("Streams")
+    # print(streams[0])
+    # print("...")
 
     # Initialize all return values
     unique_detections, picked_catalog, detectedWaveforms = [], Catalog(), []
@@ -82,12 +83,14 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
             # Now we can conduct the matched-filter detection
             st = st.select(station="WK*")    # Select specific stations
             st = filterStream(st)
+
             oldout = sys.stdout
             sys.stdout = nullwrite
             detections = match_filter.match_filter(
                 template_names=[template_name], template_list=[template], trig_int=5.0,
                 st=st, threshold=threshold, threshold_type=method, plotvar=False, cores=num_cores)
             sys.stdout = oldout
+
 
             if len(detections) > 0:
                 waveforms = match_filter.extract_from_stream(st,detections)
@@ -99,7 +102,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                 #     w.plot()
 
 
-
+            current_picks = Catalog()
             for master in detections:
                 keep = True
                 for slave in detections:
@@ -152,12 +155,20 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
 
                 oldout = sys.stdout
                 sys.stdout = nullwrite
-                picked_catalog += lag_calc.lag_calc(
+                current_picks += lag_calc.lag_calc(
                             detections=unique_detections, detect_data=st,
                             template_names=[template_name], templates=[template],
                             shift_len=1.0, min_cc=min_cc, interpolate=False, plot=False,
                             parallel=True, debug=3)
                 sys.stdout = oldout
+
+            copy_stream, copy_template = st.copy(), template.copy()
+            for event in current_picks:
+                times = [min([pk.time -0.05 for pk in event.picks])]
+                detection_multiplot(stream=copy_stream, template=copy_template,times=times, size=(10.5, 7.5), show=True,save=True)
+
+            picked_catalog += current_picks
+
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
     print('We made '+str(len(picked_catalog))+ ' picks')
     print('We have '+str(len(detectedWaveforms)) + ' detected waveforms')
