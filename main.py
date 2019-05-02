@@ -52,7 +52,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     """Main function to run the tutorial dataset."""
     nullwrite = NullWriter()
     # First we want to load our templates
-    template_names = glob.glob('./07/*.NSN___030')
+    template_names = glob.glob('./07/*.NSN___024')
 
     print("Template Names")
     print(template_names)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
         method = sys.argv[2] if len(sys.argv) > 2 else 'absolute'
         threshold = float(sys.argv[3]) if len(sys.argv) > 3 else 3.0
 
-        detections, picks,waveforms = run_matchFilter(method=method, threshold=2.0, min_cc=0.5)
+        detections, picks,waveforms = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
 
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
