@@ -14,10 +14,11 @@ With the use of their tutorials, we worked with the KU Department of Geology's d
 As we used the EQCorrscan library extensively, we had several notes that we wanted others to be aware of when using the library. <br />
 1. Geology data often contains miniSeed files with many different file extension names. Do not count on consistent file extensions throughout different data sets. This is important to account for when extracting templates or data.
 2. Use of terminology such as stream and trace can be ambiguous/interchangeable and you need to determine how you are using them as they are not.
-3.
+3. EQcorrscan's documentation of the detection_multiplot function is not descriptive of specific insights into how to use the function
+> detection_multiplot(stream, template,times,size, save = [False | True], savefile=[None | filenameString], return_figure = [False | True], show=[False | True])
 
 ## Required Dependencies
-asn1crypto==0.24.0,
+>asn1crypto==0.24.0,
 basemap==1.2.0,
 Bottleneck==1.2.1,
 certifi==2018.11.29,
