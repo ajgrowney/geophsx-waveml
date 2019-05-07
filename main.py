@@ -2,7 +2,9 @@ import sys
 import warnings
 import glob
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf
 import re
 import obspy
 from pprint import pprint
@@ -31,7 +33,6 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def get_single_stream(path):
-
     st = read(path, format="MSEED")
     return (st)
 
@@ -67,7 +68,6 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     # print("Templates")
     # print(templates)
     # print("")
-
     # DONE: Get Stream Data to compare against templates
     print('Downloading seismic data locally from 2016_07')
     streams = get_waveforms_bulk("2016_07")
@@ -95,12 +95,6 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
             if len(detections) > 0:
                 waveforms = match_filter.extract_from_stream(st,detections)
                 detectedWaveforms += waveforms
-#                times = [min([pk.time -0.05 for pk in event.picks])]
-#                detection_multiplot(stream=waveforms, template=template, times=times)
-                # for w,templ in zip(waveforms,template):
-                #     templ.plot()
-                #     w.plot()
-
 
             current_picks = Catalog()
             for master in detections:
@@ -112,10 +106,6 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                         # was the 'best' match, strongest detection
                         if not master.detect_val > slave.detect_val:
                             keep = False
-                            #print('Removed detection at %s with cccsum %s'
-                            #      % (master.detect_time, master.detect_val))
-                            #print('Keeping detection at %s with cccsum %s'
-                            #      % (slave.detect_time, slave.detect_val))
                             break
                 if keep:
                     unique_detections.append(master)
@@ -123,36 +113,6 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                           ' for template ' + master.template_name +
                           ' with a cross-correlation sum of: ' +
                           str(master.detect_val))
-                    # # We can plot these too
-                    # print("------------------------------")
-                    # print(master)
-                    # print(detections)
-                    # tm = master.detect_time
-                    # print(tm)
-                    # print(tm.hour)
-                    # print(tm.minute)
-                    # print(tm.second)
-                    # print(tm.microsecond)
-                    # timeInSeconds = tm.hour*60*60+tm.minute*60+tm.second+tm.microsecond*0.000001
-                    # print(timeInSeconds)
-                    # print("------------------------------")
-                    # count = 0
-                    # for trace, trace_temp in zip(st, template):
-                    #     ShowPlots(trace, trace_temp, template_name, timeInSeconds, str(len(unique_detections)), count)
-                    #     count += 1
-                    # if plot:
-                    #     stplot = st.copy()
-                    #     print("\nST Detection: ",stplot)
-                    #     template = templates[template_names.index(
-                    #         master.template_name)]
-                    #     print("\nTemplate Detection: ",template)
-                    #     lags = sorted([tr.stats.starttime for tr in template])
-                    #     maxlag = lags[-1] - lags[0]
-                    #     stplot.trim(starttime=master.detect_time - 10,
-                    #     endtime=master.detect_time + maxlag + 10)
-                    #     plotting.detection_multiplot(
-                    #         stplot, template, [master.detect_time.datetime])
-
                 oldout = sys.stdout
                 sys.stdout = nullwrite
                 current_picks += lag_calc.lag_calc(
@@ -163,43 +123,27 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                 sys.stdout = oldout
 
             copy_stream, copy_template = st.copy(), template.copy()
+
+            figures = []
             for event in current_picks:
                 times = [min([pk.time -0.05 for pk in event.picks])]
-                detection_multiplot(stream=copy_stream, template=copy_template,times=times, size=(10.5, 7.5), show=True,save=True)
+                plotString = str(event.resource_id)+".png"
+                mPlotFigure = detection_multiplot(stream=copy_stream, template=copy_template,times=times, size=(10.5, 7.5), savefile=plotString, return_figure=True)
+                figures.append(mPlotFigure)
+                print("Figure Plotted " + str(figures.count))
+                picked_catalog += current_picks
 
-            picked_catalog += current_picks
+            pdfName = str(current_picks[0].resource_id)
+            pdfName.replace('.','').replace('/','')
+            pdf = matplotlib.backends.backend_pdf.PdfPages(pdfName+"output.pdf")
+            for fig in figures:
+                pdf.savefig( fig )
+            pdf.close()
 
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
     print('We made '+str(len(picked_catalog))+ ' picks')
     print('We have '+str(len(detectedWaveforms)) + ' detected waveforms')
     return unique_detections, picked_catalog, detectedWaveforms
-
-def ShowPlots(stream, template, tempName, tm, detectCount, count):
-    tr_filt = template.copy()
-
-    tr_filt.filter('lowpass', freq=1.0, corners=2, zerophase=True)
-
-    t = np.arange(0, template.stats.npts / template.stats.sampling_rate, template.stats.delta)
-    ax1 = plt.subplot(211)
-    # ax1.set_xlim(left=tm)
-
-    plt.plot(t, tr_filt.data, 'k')
-    plt.ylabel('Template - ' + tempName)
-    plt.xlabel('Time [s]')
-
-    ax2 = plt.subplot(212)
-    tr_filt_st = stream.copy()
-
-    tr_filt_st.filter('lowpass', freq=5.0, corners=2, zerophase=True)
-    ax2.set_xlim(left=tm, right=(tm+160))
-
-    t_s = np.arange(0, tr_filt_st.stats.npts / tr_filt_st.stats.sampling_rate, tr_filt_st.stats.delta)
-    plt.plot(t_s, tr_filt_st.data, 'k')
-    plt.ylabel('Lowpassed Stream Data')
-    plt.xlabel('Time [s]')
-    plt.savefig('./plots/'+detectCount+'-'+str(count)+'.jpg')
-    plt.show()
-    print("FINISHING STREAM PLOTS")
 
 def analyzeDetections(detections):
     detectValSorted = sorted(detections, key=lambda x: x.detect_val, reverse=True)
@@ -212,6 +156,12 @@ if __name__ == '__main__':
         threshold = float(sys.argv[3]) if len(sys.argv) > 3 else 3.0
 
         detections, picks,waveforms = run_matchFilter(method=method, threshold=threshold, min_cc=0.5)
+
+        detectionData = []
+        for i in range(len(detections)):
+            detectionData.append([detections[i].detect_time, detections[i].template_name, method, threshold, str(detections[i].detect_val), str(len(detections)), 'Y'])
+        currentPickDF = pd.DataFrame(detectionData, columns = ['time', 'template', 'method', 'thresh', 'xcorr', 'num_dets', 'class'])
+        currentPickDF.to_csv("detections.csv", sep='\t', encoding='utf-8')
 
         analyzeDetections(detections)
     elif sys.argv[1] == "bulk":
