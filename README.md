@@ -19,9 +19,10 @@ absolute threshold is a true absolute threshold based on the cccsum value.
   <br />
 
 ## Results
+| Sample Match 1 | Sample Match 2 |
+| ---------------------- | ---------------------- |
+| ![Match 2](match2.png) | ![Match 1](match1.png) |
 
-### Example: Multiplot Detection
-![sample figure](EQcorrscan_figure.png)
 
 ## Project Notes
 As we used the EQCorrscan library extensively, we had several notes that we wanted others to be aware of when using the library. <br />
