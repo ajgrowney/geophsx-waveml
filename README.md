@@ -4,7 +4,20 @@ Project Collaborators: [Andrew Growney](https://www.linkedin.com/in/andrewgrowne
 
 ## Description
 With the goal to build an extensive machine learning platform for automated detection of earthquake's S and P wave detection, we utilized a fantastic cross-correlation based python library: [EQCorrscan](https://eqcorrscan.readthedocs.io/en/latest/). <br />
-With the use of their tutorials, we worked with the KU Department of Geology's data to help them analyze their miniSeed files.
+With the use of their tutorials, we worked with the KU Department of Geology's data to help them analyze their miniSeed files.<br /><br />
+
+The approach to cross-correlation had three different [methods](https://eqcorrscan.readthedocs.io/en/latest/submodules/autogen/eqcorrscan.core.match_filter.match_filter.html#eqcorrscan.core.match_filter.match_filter) for thresholding:<br />
+1. av_chan_corr<br />
+  > av_chan_corr_thresh=threshold×(cccsum / len(template))
+
+2. absolute<br />
+absolute threshold is a true absolute threshold based on the cccsum value.
+3. MAD<br />
+  > threshold×(median(abs(cccsum)))
+
+  where cccsum is the cross-correlation sum for a given template
+  <br />
+
 ## Results
 
 ### Example: Multiplot Detection

@@ -37,7 +37,7 @@ def get_single_stream(path):
     return (st)
 
 def get_waveforms_bulk(folder):
-    all_streams_in_folder = glob.glob('./'+folder+"/*")
+    all_streams_in_folder = glob.glob('./'+folder+"/2016-07-04*.IRIS__024")
     bulk_return = [get_single_stream(st) for st in all_streams_in_folder]
     # bulk_return.append(get_single_stream(all_streams_in_folder[0]))
     # bulk_return.append(get_single_stream(all_streams_in_folder[1]))
@@ -53,7 +53,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     """Main function to run the tutorial dataset."""
     nullwrite = NullWriter()
     # First we want to load our templates
-    template_names = glob.glob('./07/*.NSN___024')
+    template_names = glob.glob('./07/2016-07-04*.NSN___024')
 
     print("Template Names")
     print(template_names)
@@ -71,6 +71,7 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
     # DONE: Get Stream Data to compare against templates
     print('Downloading seismic data locally from 2016_07')
     streams = get_waveforms_bulk("2016_07")
+    print(len(streams))
     # print("Streams")
     # print(streams[0])
     # print("...")
@@ -133,12 +134,13 @@ def run_matchFilter(plot=False, method="av_chan_corr", threshold=0.1, min_cc=0.5
                 print("Figure Plotted " + str(figures.count))
                 picked_catalog += current_picks
 
-            pdfName = str(current_picks[0].resource_id)
-            pdfName.replace('.','').replace('/','')
-            pdf = matplotlib.backends.backend_pdf.PdfPages(pdfName+"output.pdf")
-            for fig in figures:
-                pdf.savefig( fig )
-            pdf.close()
+            if len(current_picks) > 0:
+                pdfName = str(current_picks[0].resource_id)
+                pdfName.replace('.','').replace('/','')
+                pdf = matplotlib.backends.backend_pdf.PdfPages(pdfName+"output.pdf")
+                for fig in figures:
+                    pdf.savefig( fig )
+                pdf.close()
 
     print('We made a total of ' + str(len(unique_detections)) + ' detections')
     print('We made '+str(len(picked_catalog))+ ' picks')
